@@ -38,20 +38,32 @@ char* read_input(){
     }
 }
 
+void saisie(char** input){
+    if (!fgets(*input,sizeof(*input)-1,stdin)) {
+        //^D pour quitter (fin) askip
+        printf("\n");
+        exit(0);
+    }
+
+    //Removing line breaks
+    if (strchr(*input,'\n')) *strchr(*input,'\n') = 0;
+}
+
 void shell_loop(){
     char *username;
     char prompt[50];
-    char* input;
+    char* input = malloc(sizeof(char) * 1024);
     int state = 1;
 
     username = getlogin();
-    if (username == NULL) exit(EXIT_FAILURE);
-
-    sprintf(prompt, "%s/~ > ", username);
+    if (username == NULL) {
+        printf("Failed to get username");
+        exit(EXIT_FAILURE);
+    }
 
     do {
-        fputs(prompt, stdout);
-        input = read_input();
+        printf("%s/~ > ", username);
+        saisie(&input);
         printf("%s\n", input);
 
         if (strcmp(input, "quit") == 0) state = 0;
