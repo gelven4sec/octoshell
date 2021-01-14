@@ -51,7 +51,6 @@ void saisie(char** input){
 
 void shell_loop(){
     char *username;
-    char prompt[50];
     char* input = malloc(sizeof(char) * 1024);
     int state = 1;
 
