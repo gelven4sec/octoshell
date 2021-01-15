@@ -67,9 +67,9 @@ void shell_loop(){
 
         if (strcmp(input, "quit") == 0) state = 0;
 
-        free(input);
-    } while (state);
 
+    } while (state);
+    free(input);
 }
 
 int main() {
