@@ -2,8 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
+#include <sys/wait.h>
 
-// code de Stephen Brennan (temp in the meantime to do better)
+// from Stephen Brennan (temp in the meantime to do better)
 // https://brennan.io/2015/01/16/write-a-shell-in-c/
 char* read_input(){
     int bufsize = 1024;
@@ -38,7 +40,7 @@ char* read_input(){
     }
 }
 
-void saisie(char** input){
+/*void saisie(char** input){
     if (!fgets(*input,sizeof(*input)-1,stdin)) {
         //^D pour quitter (fin) askip
         printf("\n");
@@ -47,29 +49,106 @@ void saisie(char** input){
 
     //Removing line breaks
     if (strchr(*input,'\n')) *strchr(*input,'\n') = 0;
+}*/
+
+// return the nb of arguments
+int nb_words(const char* line){
+    int count = 0;
+
+    for (int i = 0; line[i] != '\0'; ++i) {
+        if (' ' == line[i])
+            ++count;
+    }
+    return count+1;
+}
+
+// return list of arguments
+char** parse_input(char* line, int* counter){
+    char* tok;
+    int words = nb_words(line);
+    char** list = malloc(sizeof(char *) * words);
+    *counter = 0;
+
+    for (tok = strtok(line, " "); tok && *tok; tok = strtok(NULL, " \n")){
+        char* token = strdup(tok);
+        list[*counter] = token;
+        (*counter)++;
+        if (*counter >= words){
+            break;
+        }
+    }
+
+    list[*counter] = NULL;
+
+    return list;
+}
+void free_args(char** args, int nb){
+    for (int i = 0; i < nb; ++i) {
+        free(args[i]);
+    }
+}
+
+void execute(char** args, int argc_c){
+    pid_t pid;
+    int status;
+
+    pid = fork();
+    if (pid == 0) {
+        // Child process
+        if (execvp(args[0], args) == -1) {
+            perror("octoshell");
+        }
+        exit(EXIT_FAILURE);
+    } else if (pid < 0) {
+        // Error forking
+        perror("octoshell");
+    } else {
+        // Parent process
+        do {
+            waitpid(pid, &status, WUNTRACED);
+        } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+    }
+
+}
+
+void process_input(char** args, int argc_c){
+    if (strcmp(args[0], "exit") == 0){
+        printf("\nExiting Octoshell...");
+        exit(EXIT_SUCCESS);
+    } else {
+        execute(args, argc_c);
+    }
+
 }
 
 void shell_loop(){
     char *username;
-    char* input = malloc(sizeof(char) * 1024);
     int state = 1;
+    char* input; // raw prompt input
+    char** args; // list of arguments
+    int args_c; // number of arguments
 
     username = getlogin();
     if (username == NULL) {
-        printf("Failed to get username");
+        printf("\nFailed to get username");
         exit(EXIT_FAILURE);
     }
 
     do {
-        printf("%s/~ > ", username);
-        saisie(&input);
-        printf("%s\n", input);
+        printf("OSH:%s/~ > ", username);
 
-        if (strcmp(input, "quit") == 0) state = 0;
+        input = read_input();
+        if (strcmp(input, "") == 0) continue;
 
+        args = parse_input(input, &args_c);
 
+        process_input(args, args_c);
+
+        free_args(args, args_c);
+        free(args);
+        free(input);
     } while (state);
-    free(input);
+
 }
 
 int main() {
