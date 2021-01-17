@@ -1,3 +1,4 @@
+// https://brennan.io/2015/01/16/write-a-shell-in-c/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -5,37 +6,30 @@
 #include <errno.h>
 #include <sys/wait.h>
 
-// from Stephen Brennan (temp in the meantime to do better)
-// https://brennan.io/2015/01/16/write-a-shell-in-c/
 char* read_input(){
-    int bufsize = 1024;
-    int position = 0;
-    char *buffer = malloc(sizeof(char) * bufsize);
+    int counter = 0;
+    char *input = malloc(sizeof(char) * 1024);
     int c;
 
-    if (!buffer) {
-        fprintf(stderr, "octoshell: allocation error\n");
+    if (!input) {
+        fprintf(stderr, "\nOctoshell: could not allocate more memory");
         exit(EXIT_FAILURE);
     }
 
     while (1) {
         c = getchar();
 
-        if (c == EOF || c == '\n') {
-            buffer[position] = '\0';
-            return buffer;
+        if (c == '\n') {
+            input[counter] = '\0';
+            return input;
         } else {
-            buffer[position] = c;
+            input[counter] = c;
         }
-        position++;
+        counter++;
 
-        if (position >= bufsize) {
-            bufsize += 1024;
-            buffer = realloc(buffer, bufsize);
-            if (!buffer) {
-                fprintf(stderr, "octoshell: allocation error\n");
-                exit(EXIT_FAILURE);
-            }
+        if (counter >= 1024) {
+            fprintf(stderr, "\nOctoshell: Exceed maximum input capacity");
+            return "";
         }
     }
 }
@@ -51,102 +45,100 @@ char* read_input(){
     if (strchr(*input,'\n')) *strchr(*input,'\n') = 0;
 }*/
 
-// return the nb of arguments
-int nb_words(const char* line){
-    int count = 0;
+char** parse_input(char* input){
+    int counter = 0;
+    char **tokens = malloc(sizeof(char*) * 64);
+    char *token;
 
-    for (int i = 0; line[i] != '\0'; ++i) {
-        if (' ' == line[i])
-            ++count;
-    }
-    return count+1;
-}
-
-// return list of arguments
-char** parse_input(char* line, int* counter){
-    char* tok;
-    int words = nb_words(line);
-    char** list = malloc(sizeof(char *) * words);
-    *counter = 0;
-
-    for (tok = strtok(line, " "); tok && *tok; tok = strtok(NULL, " \n")){
-        char* token = strdup(tok);
-        list[*counter] = token;
-        (*counter)++;
-        if (*counter >= words){
-            break;
-        }
+    if (!tokens) {
+        fprintf(stderr, "\nOctoshell: could not allocate more memory");
+        exit(EXIT_FAILURE);
     }
 
-    list[*counter] = NULL;
+    token = strtok(input, " \n");
+    while (token != NULL) {
+        tokens[counter] = token;
+        counter++;
 
-    return list;
-}
-void free_args(char** args, int nb){
-    for (int i = 0; i < nb; ++i) {
-        free(args[i]);
+        token = strtok(NULL, " \n");
     }
+
+    tokens[counter] = NULL;
+    return tokens;
 }
 
-void execute(char** args, int argc_c){
+void execute(char** args){
     pid_t pid;
-    int status;
+    int state = 0;
 
     pid = fork();
     if (pid == 0) {
         // Child process
         if (execvp(args[0], args) == -1) {
-            perror("octoshell");
+            perror("\rOctoshell");
         }
         exit(EXIT_FAILURE);
-    } else if (pid < 0) {
-        // Error forking
-        perror("octoshell");
-    } else {
+    } else if (pid > 0) {
         // Parent process
-        do {
-            waitpid(pid, &status, WUNTRACED);
-        } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+        wait(&state);
+    } else {
+        // Error forking
+        perror("\rOctoshell");
     }
 
 }
 
-void process_input(char** args, int argc_c){
+int process_input(char** args){
+    //todo: check for pipe here
+
     if (strcmp(args[0], "exit") == 0){
+
         printf("\nExiting Octoshell...");
-        exit(EXIT_SUCCESS);
+        free(args);
+        return 0;
+
+    } else if (strcmp(args[0], "cd") == 0){
+
+        if (args[1] == NULL) {
+            fprintf(stderr, "\rOctoshell: expected argument to \"cd\"\r");
+        } else {
+            if (chdir(args[1]) != 0) {
+                perror("\rOctoshell");
+            }
+        }
+
     } else {
-        execute(args, argc_c);
+        execute(args);
     }
 
+    free(args);
+    return 1;
 }
 
 void shell_loop(){
-    char *username;
+    char* username;
+    char dir_output[1024];
     int state = 1;
     char* input; // raw prompt input
     char** args; // list of arguments
-    int args_c; // number of arguments
 
     username = getlogin();
     if (username == NULL) {
-        printf("\nFailed to get username");
+        fprintf(stderr, "\nOctoshell: Failed to get username");
         exit(EXIT_FAILURE);
     }
 
     do {
-        printf("OSH:%s/~ > ", username);
+        getcwd(dir_output, 1024);
+        printf("\r[OSH] %s:%s > ", username, dir_output);
 
         input = read_input();
         if (strcmp(input, "") == 0) continue;
 
-        args = parse_input(input, &args_c);
+        args = parse_input(input); // free input here
 
-        process_input(args, args_c);
+        state = process_input(args); // free args here
 
-        free_args(args, args_c);
-        free(args);
-        free(input);
     } while (state);
 
 }
