@@ -122,10 +122,26 @@ void execute_redirect(char** args, int redirect){
 
 }
 
+int count_args(char** args, int pipe_index){
+    int i;
+    for (i = pipe_index+1; args[i] != NULL ; ++i);
+    return i;
+}
+
+char** get_pipe_args(char** args, int pipe_index){
+    int size = count_args(args, pipe_index);
+    char** list = malloc(sizeof(char*) * size);
+    for (int i = 0; i < size; ++i) {
+        list[i] = args[pipe_index+1+i];
+    }
+    return list;
+}
+
 void execute_pipe(char** args, int pipe_index){
     pid_t pid1;
     pid_t pid2;
     int fd[2];
+    char** args_pipe;
 
     // for the first command to be executed normally
     args[pipe_index] = NULL;
@@ -134,6 +150,8 @@ void execute_pipe(char** args, int pipe_index){
         fprintf(stderr, "\rNo argument after pipe !");
         return;
     }
+
+    args_pipe = get_pipe_args(args, pipe_index);
 
     if (pipe(fd) == -1){
         perror("\rOctoshell");
@@ -152,7 +170,7 @@ void execute_pipe(char** args, int pipe_index){
             // child process 1
             close(fd[1]);
             dup2(fd[0], 0);
-            execvp(args[pipe_index+1], (char*[]){args[pipe_index+1], NULL});
+            execvp(args_pipe[0], args_pipe);
         } else {
             // parent, i guess
             waitpid(pid1, NULL, 0);
