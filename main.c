@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/wait.h>
+#include <fcntl.h>
 
 char* read_input(){
     int counter = 0;
@@ -88,6 +89,39 @@ void execute(char** args){
 
 }
 
+void execute_redirect(char** args, int redirect){
+    pid_t pid;
+    int state = 0;
+    int fd;
+
+    args[redirect] = NULL;
+
+    if((fd = open(args[redirect+1], O_RDWR | O_CREAT))==-1){ /*open the file */
+        perror("open");
+        return;
+    }
+
+    //close(STDOUT_FILENO);
+    dup2(fd, STDOUT_FILENO);
+    close(fd);
+
+    pid = fork();
+    if (pid == 0) {
+        // Child process
+        if (execvp(args[0], args) == -1) {
+            perror("\rOctoshell");
+        }
+        //exit(EXIT_FAILURE); // jsp pourquoi je l'ai mis je verrais après
+    } else if (pid > 0) {
+        // Parent process
+        waitpid(pid, &state, 0);
+    } else {
+        // Error forking
+        perror("\rOctoshell");
+    }
+
+}
+
 void execute_pipe(char** args, int pipe_index){
     pid_t pid;
     pid_t pid2;
@@ -124,7 +158,7 @@ void execute_pipe(char** args, int pipe_index){
         // Parent process
         // if we reach here, we are in parent process
         close(fd[0]);                 // file descriptor unused in parent
-        dup2(fd[1], STDOUT_FILENO);
+        dup2(fd[1], 1);
 
         // first process
         pid2 = fork();
@@ -144,7 +178,8 @@ void execute_pipe(char** args, int pipe_index){
 
         // send EOF so child can continue (child blocks until all input has been processed):
         close(fd[1]);
-        close(STDOUT_FILENO);
+        close(fd[0]);
+        close(1); // looks like a bad idea but it's the only way to get the sort result
         wait(&state);
 
     } else {
@@ -158,6 +193,16 @@ int check_pipe(char** args){
     int bool = 0;
     for (int i = 0; args[i] != NULL; ++i) {
         if (strcmp(args[i], "|") == 0){
+            return i;
+        }
+    }
+    return bool;
+}
+
+int check_redirect(char** args){
+    int bool = 0;
+    for (int i = 0; args[i] != NULL; ++i) {
+        if (strcmp(args[i], ">") == 0){
             return i;
         }
     }
@@ -185,6 +230,10 @@ int process_input(char** args){
     } else if (check_pipe(args) > 0) {
 
         execute_pipe(args, check_pipe(args));
+
+    } else if (check_redirect(args) > 0) {
+
+        execute_redirect(args, check_redirect(args));
 
     } else {
         execute(args);
