@@ -6,5 +6,9 @@ For the moment:
 - `exit` : To leave the shell
 - `cd` : Navigate through directories
 
+## Builtin features
+For the moment:
+- '|' pipe function to pass the the STDOUT of a process to the STDIN of another 
+
 ## To Do
 - Simple pipe process
