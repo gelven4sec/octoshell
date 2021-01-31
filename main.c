@@ -77,10 +77,10 @@ void execute(char** args){
         if (execvp(args[0], args) == -1) {
             perror("\rOctoshell");
         }
-        exit(EXIT_FAILURE);
+        //exit(EXIT_FAILURE); // jsp pourquoi je l'ai mis je verrais après
     } else if (pid > 0) {
         // Parent process
-        wait(&state);
+        waitpid(pid, &state, 0);
     } else {
         // Error forking
         perror("\rOctoshell");
@@ -88,22 +88,65 @@ void execute(char** args){
 
 }
 
-void execute_pipe(char** args, int pipe){
+void execute_pipe(char** args, int pipe_index){
     pid_t pid;
+    pid_t pid2;
     int state = 0;
+    int fd[2];
+    char buffer[255];
 
-    args[pipe] = NULL;
+    // for the first command to be executed normally
+    args[pipe_index] = NULL;
 
+    if (args[pipe_index+1] == NULL){
+        fprintf(stderr, "\rNo argument after pipe !");
+        return;
+    }
+
+    if (pipe(fd) == -1){
+        perror("\rOctoshell");
+        return;
+    }
+
+    // second process
     pid = fork();
     if (pid == 0) {
         // Child process
-        if (execvp(args[0], args) == -1) {
+        dup2(fd[0], STDIN_FILENO);
+        close(fd[0]);
+        close(fd[1]);
+        if (execvp(args[pipe_index+1], (char*[]){args[pipe_index+1], NULL}) == -1) {
             perror("\rOctoshell");
         }
         exit(EXIT_FAILURE);
+
     } else if (pid > 0) {
         // Parent process
+        // if we reach here, we are in parent process
+        close(fd[0]);                 // file descriptor unused in parent
+        dup2(fd[1], STDOUT_FILENO);
+
+        // first process
+        pid2 = fork();
+        if (pid2 == 0) {
+            // Child process
+            if (execvp(args[0], args) == -1) {
+                perror("\rOctoshell");
+            }
+            exit(EXIT_FAILURE);
+        } else if (pid2 > 0) {
+            // Parent process
+            wait(&state);
+        } else {
+            // Error forking
+            perror("\rOctoshell");
+        }
+
+        // send EOF so child can continue (child blocks until all input has been processed):
+        close(fd[1]);
+        close(STDOUT_FILENO);
         wait(&state);
+
     } else {
         // Error forking
         perror("\rOctoshell");
@@ -167,6 +210,7 @@ void shell_loop(){
 
     do {
         getcwd(dir_output, 1024);
+        sleep(1);
         printf("\r[OSH] %s:%s > ", username, dir_output);
 
         input = read_input();
