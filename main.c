@@ -123,11 +123,9 @@ void execute_redirect(char** args, int redirect){
 }
 
 void execute_pipe(char** args, int pipe_index){
-    pid_t pid;
+    pid_t pid1;
     pid_t pid2;
-    int state = 0;
     int fd[2];
-    char buffer[255];
 
     // for the first command to be executed normally
     args[pipe_index] = NULL;
@@ -142,49 +140,25 @@ void execute_pipe(char** args, int pipe_index){
         return;
     }
 
-    // second process
-    pid = fork();
-    if (pid == 0) {
-        // Child process
-        dup2(fd[0], STDIN_FILENO);
+    pid1 = fork();
+    if (pid1 == 0){
+        // child process 1
         close(fd[0]);
-        close(fd[1]);
-        if (execvp(args[pipe_index+1], (char*[]){args[pipe_index+1], NULL}) == -1) {
-            perror("\rOctoshell");
-        }
-        exit(EXIT_FAILURE);
-
-    } else if (pid > 0) {
-        // Parent process
-        // if we reach here, we are in parent process
-        close(fd[0]);                 // file descriptor unused in parent
         dup2(fd[1], 1);
-
-        // first process
-        pid2 = fork();
-        if (pid2 == 0) {
-            // Child process
-            if (execvp(args[0], args) == -1) {
-                perror("\rOctoshell");
-            }
-            exit(EXIT_FAILURE);
-        } else if (pid2 > 0) {
-            // Parent process
-            wait(&state);
-        } else {
-            // Error forking
-            perror("\rOctoshell");
-        }
-
-        // send EOF so child can continue (child blocks until all input has been processed):
-        close(fd[1]);
-        close(fd[0]);
-        close(1); // looks like a bad idea but it's the only way to get the sort result
-        wait(&state);
-
+        execvp(args[0], args);
     } else {
-        // Error forking
-        perror("\rOctoshell");
+        pid2 = fork();
+        if (pid2 == 0){
+            // child process 1
+            close(fd[1]);
+            dup2(fd[0], 0);
+            execvp(args[pipe_index+1], (char*[]){args[pipe_index+1], NULL});
+        } else {
+            // parent, i guess
+            waitpid(pid1, NULL, 0);
+            close(fd[1]);
+            waitpid(pid2, NULL, 0);
+        }
     }
 
 }
