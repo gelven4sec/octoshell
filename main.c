@@ -88,8 +88,40 @@ void execute(char** args){
 
 }
 
+void execute_pipe(char** args, int pipe){
+    pid_t pid;
+    int state = 0;
+
+    args[pipe] = NULL;
+
+    pid = fork();
+    if (pid == 0) {
+        // Child process
+        if (execvp(args[0], args) == -1) {
+            perror("\rOctoshell");
+        }
+        exit(EXIT_FAILURE);
+    } else if (pid > 0) {
+        // Parent process
+        wait(&state);
+    } else {
+        // Error forking
+        perror("\rOctoshell");
+    }
+
+}
+
+int check_pipe(char** args){
+    int bool = 0;
+    for (int i = 0; args[i] != NULL; ++i) {
+        if (strcmp(args[i], "|") == 0){
+            return i;
+        }
+    }
+    return bool;
+}
+
 int process_input(char** args){
-    //todo: check for pipe here
 
     if (strcmp(args[0], "exit") == 0){
 
@@ -107,9 +139,14 @@ int process_input(char** args){
             }
         }
 
+    } else if (check_pipe(args) > 0) {
+
+        execute_pipe(args, check_pipe(args));
+
     } else {
         execute(args);
     }
+
 
     free(args);
     return 1;
