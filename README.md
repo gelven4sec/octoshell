@@ -8,7 +8,8 @@ For the moment:
 
 ## Builtin features
 For the moment:
-- '|' pipe function to pass the the STDOUT of a process to the STDIN of another 
+- `|` pipe function to pass the the STDOUT of a process to the STDIN of another 
 
 ## To Do
-- Simple pipe process
+- I/O Redirections : need help btw
+- `help` command to introduce the shell
