@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
 #include <sys/wait.h>
 #include <fcntl.h>
 
@@ -34,17 +33,6 @@ char* read_input(){
         }
     }
 }
-
-/*void saisie(char** input){
-    if (!fgets(*input,sizeof(*input)-1,stdin)) {
-        //^D pour quitter (fin) askip
-        printf("\n");
-        exit(0);
-    }
-
-    //Removing line breaks
-    if (strchr(*input,'\n')) *strchr(*input,'\n') = 0;
-}*/
 
 char** parse_input(char* input){
     int counter = 0;
