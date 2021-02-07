@@ -207,6 +207,16 @@ int process_input(char** args){
             }
         }
 
+    } else if (strcmp(args[0], "help") == 0) {
+
+        printf("\r#########################"
+               "\nWelcome to the octoshell, made with love by some students."
+               "\nHere are the commands available :\n"
+               "\n\t- cd : Navigate through directories"
+               "\n\t- exit: To leave the shell"
+               "\n\t- | : to use pipe functionality"
+               "\n\n#########################\n");
+
     } else if (check_pipe(args) > 0) {
 
         execute_pipe(args, check_pipe(args));
