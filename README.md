@@ -9,7 +9,8 @@ For the moment:
 
 ## Builtin features
 For the moment:
-- `|` pipe function to pass the the STDOUT of a process to the STDIN of another 
+- `|` : pipe function to pass the the STDOUT of a process to the STDIN of another
+- `<` and `>` : redirect STDOUT and STDIN to file
 
 ## To Do
-- I/O Redirections : need help btw
+- `history` : get 10 lastest commands
