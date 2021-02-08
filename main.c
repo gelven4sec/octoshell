@@ -80,21 +80,19 @@ void execute(char** args){
 void execute_redirect(char** args, int redirect){
     pid_t pid;
     int state = 0;
-    int fd;
+    FILE* fd;
 
     args[redirect] = NULL;
 
-    if((fd = open(args[redirect+1], O_RDWR | O_CREAT))==-1){ /*open the file */
-        perror("open");
+    if ((fd = fopen(args[redirect+1], "w")) == NULL){
+        printf("\nFile not found !\n");
         return;
     }
 
-    //close(STDOUT_FILENO);
-    dup2(fd, STDOUT_FILENO);
-    close(fd);
-
     pid = fork();
     if (pid == 0) {
+        close(1);
+        dup2(fd->_fileno, 1);
         // Child process
         if (execvp(args[0], args) == -1) {
             perror("\rOctoshell");
@@ -103,6 +101,39 @@ void execute_redirect(char** args, int redirect){
     } else if (pid > 0) {
         // Parent process
         waitpid(pid, &state, 0);
+        fclose(fd);
+    } else {
+        // Error forking
+        perror("\rOctoshell");
+    }
+
+}
+
+void execute_redirect2(char** args, int redirect){
+    pid_t pid;
+    int state = 0;
+    FILE* fd;
+
+    args[redirect] = NULL;
+
+    if ((fd = fopen(args[redirect+1], "r")) == NULL){
+        printf("\nFile not found !\n");
+        return;
+    }
+
+    pid = fork();
+    if (pid == 0) {
+        //close(1);
+        dup2(fd->_fileno, 0);
+        // Child process
+        if (execvp(args[0], args) == -1) {
+            perror("\rOctoshell");
+        }
+        //exit(EXIT_FAILURE); // jsp pourquoi je l'ai mis je verrais après
+    } else if (pid > 0) {
+        // Parent process
+        waitpid(pid, &state, 0);
+        fclose(fd);
     } else {
         // Error forking
         perror("\rOctoshell");
@@ -169,20 +200,10 @@ void execute_pipe(char** args, int pipe_index){
 
 }
 
-int check_pipe(char** args){
+int check_char(char** args, char* sep){
     int bool = 0;
     for (int i = 0; args[i] != NULL; ++i) {
-        if (strcmp(args[i], "|") == 0){
-            return i;
-        }
-    }
-    return bool;
-}
-
-int check_redirect(char** args){
-    int bool = 0;
-    for (int i = 0; args[i] != NULL; ++i) {
-        if (strcmp(args[i], ">") == 0){
+        if (strcmp(args[i], sep) == 0){
             return i;
         }
     }
@@ -217,13 +238,17 @@ int process_input(char** args){
                "\n\t- | : to use pipe functionality"
                "\n\n#########################\n");
 
-    } else if (check_pipe(args) > 0) {
+    } else if (check_char(args, "|") > 0) {
 
-        execute_pipe(args, check_pipe(args));
+        execute_pipe(args, check_char(args, "|"));
 
-    } else if (check_redirect(args) > 0) {
+    } else if (check_char(args, ">") > 0) {
 
-        execute_redirect(args, check_redirect(args));
+        execute_redirect(args, check_char(args, ">"));
+
+    } else if (check_char(args, "<") > 0) {
+
+        execute_redirect2(args, check_char(args, "<"));
 
     } else {
         execute(args);
