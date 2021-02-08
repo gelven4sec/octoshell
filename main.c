@@ -6,6 +6,7 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 
+// return raw input
 char* read_input(){
     int counter = 0;
     char *input = malloc(sizeof(char) * 1024);
@@ -15,7 +16,8 @@ char* read_input(){
         fprintf(stderr, "\nOctoshell: could not allocate more memory");
         exit(EXIT_FAILURE);
     }
-
+    
+    // loop until user input enter
     while (1) {
         c = getchar();
 
@@ -27,6 +29,7 @@ char* read_input(){
         }
         counter++;
 
+        // if input is larger than 1024 bytes than stop and return nothing
         if (counter >= 1024) {
             fprintf(stderr, "\nOctoshell: Exceed maximum input capacity");
             return "";
@@ -34,6 +37,7 @@ char* read_input(){
     }
 }
 
+// return array of every arguments separated by a space
 char** parse_input(char* input){
     int counter = 0;
     char **tokens = malloc(sizeof(char*) * 64);
@@ -52,10 +56,11 @@ char** parse_input(char* input){
         token = strtok(NULL, " \n");
     }
 
-    tokens[counter] = NULL;
+    tokens[counter] = NULL; // execvp take in argument a null terminated array
     return tokens;
 }
 
+// do simplest execute
 void execute(char** args){
     pid_t pid;
     int state = 0;
@@ -77,6 +82,7 @@ void execute(char** args){
 
 }
 
+// execute and redirect ouput to a file
 void execute_redirect(char** args, int redirect){
     pid_t pid;
     int state = 0;
@@ -109,6 +115,7 @@ void execute_redirect(char** args, int redirect){
 
 }
 
+// execute with the redirections of file as input 
 void execute_redirect2(char** args, int redirect){
     pid_t pid;
     int state = 0;
@@ -141,12 +148,14 @@ void execute_redirect2(char** args, int redirect){
 
 }
 
+// need to know size of new array to allocate memory
 int count_args(char** args, int pipe_index){
     int i;
     for (i = pipe_index+1; args[i] != NULL ; ++i);
     return i;
 }
 
+// create arguments array for second command
 char** get_pipe_args(char** args, int pipe_index){
     int size = count_args(args, pipe_index);
     char** list = malloc(sizeof(char*) * size);
@@ -156,6 +165,7 @@ char** get_pipe_args(char** args, int pipe_index){
     return list;
 }
 
+// execution with pipe
 void execute_pipe(char** args, int pipe_index){
     pid_t pid1;
     pid_t pid2;
@@ -200,6 +210,7 @@ void execute_pipe(char** args, int pipe_index){
 
 }
 
+// look after a character to check any special execution
 int check_char(char** args, char* sep){
     int bool = 0;
     for (int i = 0; args[i] != NULL; ++i) {
@@ -240,15 +251,15 @@ int process_input(char** args){
 
     } else if (check_char(args, "|") > 0) {
 
-        execute_pipe(args, check_char(args, "|"));
+        execute_pipe(args, check_char(args, "|")); // command1 -> command2
 
     } else if (check_char(args, ">") > 0) {
 
-        execute_redirect(args, check_char(args, ">"));
+        execute_redirect(args, check_char(args, ">")); // command -> file
 
     } else if (check_char(args, "<") > 0) {
 
-        execute_redirect2(args, check_char(args, "<"));
+        execute_redirect2(args, check_char(args, "<")); // command <- file
 
     } else {
         execute(args);
