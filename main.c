@@ -247,6 +247,8 @@ int process_input(char** args){
                "\n\t- cd : Navigate through directories"
                "\n\t- exit: To leave the shell"
                "\n\t- | : to use pipe functionality"
+               "\n\t- < and > : redirect stdout and stdin"
+
                "\n\n#########################\n");
 
     } else if (check_char(args, "|") > 0) {
