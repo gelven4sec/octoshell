@@ -71,7 +71,6 @@ void execute(char** args){
         if (execvp(args[0], args) == -1) {
             perror("\rOctoshell");
         }
-        //exit(EXIT_FAILURE); // jsp pourquoi je l'ai mis je verrais après
     } else if (pid > 0) {
         // Parent process
         waitpid(pid, &state, 0);
@@ -97,13 +96,11 @@ void execute_redirect(char** args, int redirect){
 
     pid = fork();
     if (pid == 0) {
-        close(1);
         dup2(fd->_fileno, 1);
         // Child process
         if (execvp(args[0], args) == -1) {
             perror("\rOctoshell");
         }
-        //exit(EXIT_FAILURE); // jsp pourquoi je l'ai mis je verrais après
     } else if (pid > 0) {
         // Parent process
         waitpid(pid, &state, 0);
@@ -130,13 +127,11 @@ void execute_redirect2(char** args, int redirect){
 
     pid = fork();
     if (pid == 0) {
-        //close(1);
         dup2(fd->_fileno, 0);
         // Child process
         if (execvp(args[0], args) == -1) {
             perror("\rOctoshell");
         }
-        //exit(EXIT_FAILURE); // jsp pourquoi je l'ai mis je verrais après
     } else if (pid > 0) {
         // Parent process
         waitpid(pid, &state, 0);
@@ -182,6 +177,8 @@ void execute_pipe(char** args, int pipe_index){
 
     args_pipe = get_pipe_args(args, pipe_index);
 
+    // fd[0] pour lire
+    // fd[1] pour écrire
     if (pipe(fd) == -1){
         perror("\rOctoshell");
         return;
@@ -194,14 +191,15 @@ void execute_pipe(char** args, int pipe_index){
         dup2(fd[1], 1);
         execvp(args[0], args);
     } else {
+        // parent pid1
         pid2 = fork();
         if (pid2 == 0){
-            // child process 1
+            // child process 2
             close(fd[1]);
             dup2(fd[0], 0);
             execvp(args_pipe[0], args_pipe);
         } else {
-            // parent, i guess
+            // parent pid2
             waitpid(pid1, NULL, 0);
             close(fd[1]);
             waitpid(pid2, NULL, 0);
